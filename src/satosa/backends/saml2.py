@@ -276,6 +276,8 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
             logger.debug(logline)
 
             acs_endp, response_binding = self.sp.config.getattr("endpoints", "sp")["assertion_consumer_service"][0]
+            kwargs['is_passive'] = 'false'
+            kwargs['provider_name'] = 'DEMO-SP'
             req_id, req = self.sp.create_authn_request(
                 destination, binding=response_binding, **kwargs
             )
@@ -437,6 +439,13 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
 
         metadata_string = create_metadata_string(None, self.sp.config, 4, None, None, None, None,
                                                  None).decode("utf-8")
+        cert = self.sp.config.cert_file
+        keyfile = self.sp.config.key_file
+        sign = (cert and keyfile)
+        metadata_string = create_metadata_string(None,
+                               config=self.sp.config,
+                               valid=4,
+                               sign=sign).decode("utf-8")
         return Response(metadata_string, content="text/xml")
 
     def register_endpoints(self):
