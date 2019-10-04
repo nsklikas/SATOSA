@@ -273,7 +273,6 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
             logger.debug(logline)
 
             acs_endp, response_binding = self.sp.config.getattr("endpoints", "sp")["assertion_consumer_service"][0]
-            kwargs['is_passive'] = 'false'
             req_id, req = self.sp.create_authn_request(
                 destination, binding=response_binding, **kwargs
             )
