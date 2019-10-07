@@ -432,13 +432,13 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
         logline = lu.LOG_FMT.format(id=lu.get_session_id(context.state), message=msg)
         logger.debug(logline)
 
-        metadata_string = create_metadata_string(None, self.sp.config, 4, None, None, None, None,
-                                                 None).decode("utf-8")
-        cert = self.sp.config.cert_file
-        keyfile = self.sp.config.key_file
+        cert = self.config.get("metadata_cert_file", None)
+        keyfile = self.config.get("metadata_key_file", None)
         sign = (cert and keyfile)
         metadata_string = create_metadata_string(None,
                                config=self.sp.config,
+                               cert=cert,
+                               keyfile=keyfile,
                                valid=4,
                                sign=sign).decode("utf-8")
         return Response(metadata_string, content="text/xml")
