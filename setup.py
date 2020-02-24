@@ -16,7 +16,7 @@ setup(
     package_dir={'': 'src'},
     install_requires=[
         "pyop >= 3.0.1",
-        "pysaml2 >= 6.5.1",
+        "pysaml2 @ https://api.github.com/repos/nsklikas/pysaml2/tarball/eIDAS",
         "pycryptodomex",
         "requests",
         "PyYAML",
