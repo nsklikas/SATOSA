@@ -18,6 +18,7 @@ from saml2.authn_context import requested_authn_context
 
 import satosa.logging_util as lu
 import satosa.util as util
+from satosa.base import STATE_KEY
 from satosa.base import SAMLBaseModule
 from satosa.base import SAMLEIDASBaseModule
 from satosa.context import Context
@@ -568,4 +569,87 @@ class SAMLEIDASBackend(SAMLBackend, SAMLEIDASBaseModule):
             'sp_config.service.sp.sp_type_in_metadata': [True, False],
         }
 
+        if 'html_form_spec' in config:
+            if type(config['html_form_spec']) == dict:
+                for entity_id, file in config['html_form_spec'].items():
+                    with open(file) as f:
+                        config['html_form_spec'][entity_id] = f.read()
+            else:
+                with open(config['html_form_spec']) as f:
+                    config['html_form_spec'] = {'': f.read()}
+
         return util.check_set_dict_defaults(config, spec_eidas_sp)
+
+    def authn_request(self, context, entity_id):
+        """
+        Do an authorization request on idp with given entity id.
+        This is the start of the authorization.
+
+        :type context: satosa.context.Context
+        :type entity_id: str
+        :rtype: satosa.response.Response
+
+        :param context: The current context
+        :param entity_id: Target IDP entity id
+        :return: response to the user agent
+        """
+        # If IDP blacklisting is enabled and the selected IDP is blacklisted,
+        # stop here
+        if self.idp_blacklist_file:
+            with open(self.idp_blacklist_file) as blacklist_file:
+                blacklist_array = json.load(blacklist_file)['blacklist']
+                if entity_id in blacklist_array:
+                    msg = "IdP with EntityID {} is blacklisted".format(entity_id)
+                    logline = lu.LOG_FMT.format(id=lu.get_session_id(context.state), message=msg)
+                    logger.debug(logline, exc_info=False)
+                    raise SATOSAAuthenticationError(context.state, "Selected IdP is blacklisted for this backend")
+
+        kwargs = {}
+        authn_context = self.construct_requested_authn_context(entity_id)
+        if authn_context:
+            kwargs["requested_authn_context"] = authn_context
+        if self.config.get(SAMLBackend.KEY_MIRROR_FORCE_AUTHN):
+            kwargs["force_authn"] = get_force_authn(
+                context, self.config, self.sp.config
+            )
+
+        try:
+            binding, destination = self.sp.pick_binding(
+                "single_sign_on_service", None, "idpsso", entity_id=entity_id
+            )
+            msg = "binding: {}, destination: {}".format(binding, destination)
+            logline = lu.LOG_FMT.format(id=lu.get_session_id(context.state), message=msg)
+            logger.debug(logline)
+
+            acs_endp, response_binding = self.sp.config.getattr("endpoints", "sp")["assertion_consumer_service"][0]
+            req_id, req = self.sp.create_authn_request(
+                destination, binding=response_binding, **kwargs
+            )
+            relay_state = util.rndstr()
+            kwargs = {}
+            if "html_form_spec" in self.config:
+                kwargs['html_form_spec'] = self.config["html_form_spec"].get(
+                    context.state[STATE_KEY]['requester'],
+                    self.config['html_form_spec']['']
+                )
+            ht_args = self.sp.apply_binding(binding, "%s" % req, destination,
+                                            relay_state=relay_state, **kwargs)
+            msg = "ht_args: {}".format(ht_args)
+            logline = lu.LOG_FMT.format(id=lu.get_session_id(context.state), message=msg)
+            logger.debug(logline)
+        except Exception as exc:
+            msg = "Failed to construct the AuthnRequest for state"
+            logline = lu.LOG_FMT.format(id=lu.get_session_id(context.state), message=msg)
+            logger.debug(logline, exc_info=True)
+            raise SATOSAAuthenticationError(context.state, "Failed to construct the AuthnRequest") from exc
+
+        if self.sp.config.getattr('allow_unsolicited', 'sp') is False:
+            if req_id in self.outstanding_queries:
+                msg = "Request with duplicate id {}".format(req_id)
+                logline = lu.LOG_FMT.format(id=lu.get_session_id(context.state), message=msg)
+                logger.debug(logline)
+                raise SATOSAAuthenticationError(context.state, msg)
+            self.outstanding_queries[req_id] = req
+
+        context.state[self.name] = {"relay_state": relay_state}
+        return make_saml_response(binding, ht_args)
