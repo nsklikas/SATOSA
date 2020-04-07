@@ -27,6 +27,7 @@ from saml2.saml import NAMEID_FORMAT_UNSPECIFIED
 from saml2.samlp import name_id_policy_from_string
 from saml2.server import Server
 
+from satosa.base import STATE_KEY
 from satosa.base import SAMLBaseModule
 from satosa.context import Context
 from .base import FrontendModule
@@ -75,6 +76,14 @@ class SAMLFrontend(FrontendModule, SAMLBaseModule):
         self.custom_attribute_release = config.get(
             self.KEY_CUSTOM_ATTR_RELEASE)
         self.idp = None
+        if 'html_form_spec' in config:
+            if type(config['html_form_spec']) == dict:
+                for entity_id, file in config['html_form_spec'].items():
+                    with open(file) as f:
+                        config['html_form_spec'][entity_id] = f.read()
+            else:
+                with open(config['html_form_spec']) as f:
+                    config['html_form_spec'] = {'': f.read()}
 
     def handle_authn_response(self, context, internal_response):
         """
@@ -431,9 +440,15 @@ class SAMLFrontend(FrontendModule, SAMLBaseModule):
             logger.warning(msg)
 
         resp = idp.create_authn_response(**args)
+        kwargs = {}
+        if "html_form_spec" in self.config:
+            kwargs['html_form_spec'] = self.config["html_form_spec"].get(
+                context.state[STATE_KEY]['requester'],
+                self.config['html_form_spec']['']
+            )
         http_args = idp.apply_binding(
             resp_args["binding"], str(resp), resp_args["destination"],
-            request_state["relay_state"], response=True)
+            request_state["relay_state"], response=True, **kwargs)
 
         # Set the common domain cookie _saml_idp if so configured.
         if self.config.get('common_domain_cookie'):
