@@ -25,7 +25,7 @@ COPY requirements.txt ${OPTION_APPDIR}
 RUN pip3 install -r requirements.txt
 
 COPY . ${OPTION_APPDIR}/
-RUN pip3 install ${OPTION_APPDIR}
+RUN pip3 install -e ${OPTION_APPDIR}
 
 COPY docker/attributemaps /opt/satosa/attributemaps
 COPY  ./docker/start.sh /start.sh

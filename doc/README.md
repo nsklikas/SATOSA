@@ -402,6 +402,24 @@ config:
   [...]
 ```
 
+##### Dynamic requested attributes
+
+When the `dynamic_requested_attributes` configuration option is set to `True`,
+the requested attributes SAML2 extension is used to request attributes from the
+IdP. These attributes are populated dynamically using the attributes which were
+requested from the frontend.
+
+In order for this to work the frontend must populate the internal request's
+`attributes` field.
+
+The default behaviour is `False`.
+
+```yaml
+config:
+  dynamic_requested_attributes: True
+  [...]
+```
+
 ### <a name="openid_plugin" style="color:#000000">OpenID Connect plugins</a>
 
 #### Backend

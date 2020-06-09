@@ -112,6 +112,7 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
         self.encryption_keys = []
         self.outstanding_queries = {}
         self.idp_blacklist_file = config.get('idp_blacklist_file', None)
+        self.requested_attributes = config.get('requested_attributes', None)
 
         sp_keypairs = sp_config.getattr('encryption_keypairs', '')
         sp_key_file = sp_config.getattr('key_file', '')
@@ -169,15 +170,22 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
         """
 
         entity_id = self.get_idp_entity_id(context)
+        requested_attributes = internal_req.get("attributes")
         if entity_id is None:
             # since context is not passed to disco_query
             # keep the information in the state cookie
             context.state[Context.KEY_FORCE_AUTHN] = get_force_authn(
                 context, self.config, self.sp.config
             )
+            if self.requested_attributes:
+                # We need the requested attributes, so store them in the cookie
+                context.state[Context.KEY_REQUESTED_ATTRIBUTES] = \
+                    requested_attributes
             return self.disco_query(context)
 
-        return self.authn_request(context, entity_id)
+        return self.authn_request(
+            context, entity_id, requested_attributes=requested_attributes
+        )
 
     def disco_query(self, context):
         """
@@ -231,13 +239,34 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
 
         return authn_context
 
-    def authn_request(self, context, entity_id):
+    def get_requested_attributes(self, requested_attributes):
+        if not requested_attributes:
+            return
+
+        attrs = self.converter.from_internal_filter(
+            self.attribute_profile, requested_attributes
+        )
+        requested_attrs = []
+        for attr in attrs:
+            # Internal attributes map to the attribute's friendly_name
+            for req_attr in self.requested_attributes:
+                if req_attr['friendly_name'] == attr:
+                    requested_attrs.append(
+                        dict(
+                            friendly_name=attr,
+                            required=req_attr['required']
+                        )
+                    )
+        return requested_attrs
+
+    def authn_request(self, context, entity_id, requested_attributes=None):
         """
         Do an authorization request on idp with given entity id.
         This is the start of the authorization.
 
         :type context: satosa.context.Context
         :type entity_id: str
+        :type requested_attributes: list
         :rtype: satosa.response.Response
 
         :param context: The current context
@@ -263,6 +292,10 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
         if self.config.get(SAMLBackend.KEY_MIRROR_FORCE_AUTHN):
             kwargs["force_authn"] = get_force_authn(
                 context, self.config, self.sp.config
+            )
+        if self.requested_attributes:
+            kwargs["requested_attributes"] = self.get_requested_attributes(
+                requested_attributes
             )
 
         try:
@@ -362,6 +395,9 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
         """
         info = context.request
         state = context.state
+        requested_attributes = state.pop(
+            Context.KEY_REQUESTED_ATTRIBUTES, None
+        )
 
         try:
             entity_id = info["entityID"]
@@ -371,7 +407,11 @@ class SAMLBackend(BackendModule, SAMLBaseModule):
             logger.debug(logline, exc_info=True)
             raise SATOSAAuthenticationError(state, "No IDP chosen") from err
 
-        return self.authn_request(context, entity_id)
+        return self.authn_request(
+            context,
+            entity_id,
+            requested_attributes=requested_attributes
+        )
 
     def _translate_response(self, response, state):
         """
@@ -580,7 +620,7 @@ class SAMLEIDASBackend(SAMLBackend, SAMLEIDASBaseModule):
 
         return util.check_set_dict_defaults(config, spec_eidas_sp)
 
-    def authn_request(self, context, entity_id):
+    def authn_request(self, context, entity_id, requested_attributes=None):
         """
         Do an authorization request on idp with given entity id.
         This is the start of the authorization.
@@ -611,6 +651,10 @@ class SAMLEIDASBackend(SAMLBackend, SAMLEIDASBaseModule):
         if self.config.get(SAMLBackend.KEY_MIRROR_FORCE_AUTHN):
             kwargs["force_authn"] = get_force_authn(
                 context, self.config, self.sp.config
+            )
+        if self.requested_attributes:
+            kwargs["requested_attributes"] = self.get_requested_attributes(
+                requested_attributes
             )
 
         try:
