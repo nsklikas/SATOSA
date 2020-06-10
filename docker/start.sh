@@ -26,18 +26,6 @@ if [ ! -d "${DATA_DIR}/attributemaps" ]
 then cp -pr /opt/satosa/attributemaps "${DATA_DIR}/attributemaps"
 fi
 
-# activate virtualenv
-. /opt/satosa/bin/activate
-
-# generate metadata for frontend(IdP interface) and backend(SP interface)
-# write the result to mounted volume
-mkdir -p "${METADATA_DIR}"
-satosa-saml-metadata              \
-	"${DATA_DIR}/proxy_conf.yaml" \
-	"${DATA_DIR}/metadata.key"    \
-	"${DATA_DIR}/metadata.crt"    \
-	--dir "${METADATA_DIR}"
-
 # if the user provided a gunicorn configuration, use it
 if [ -f "$GUNICORN_CONF" ]
 then conf_opt="--config ${GUNICORN_CONF}"
@@ -58,9 +46,9 @@ then chain_opts="--ca-certs chain.pem"
 fi
 
 # start the proxy
-exec gunicorn $conf_opt        \
-	-b 0.0.0.0:"${PROXY_PORT}" \
-	satosa.wsgi:app            \
-	$https_opts                \
-	$chain_opts                \
-	;
+exec gunicorn satosa.wsgi:app \
+    --bind=[::]:"${OPTION_GUNICORN_PORT}" \
+    --workers="${OPTION_GUNICORN_WORKERS}" \
+    --worker-tmp-dir=/dev/shm \
+    --log-file=- \
+    --access-logfile=-

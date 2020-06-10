@@ -1,0 +1,28 @@
+---
+variables:
+  REG_URL: "registry.docker.grnet.gr"
+  REG_PROJECT: "eid-proxy"
+  IMG_NAME: "satosa"
+  IMG: $REG_URL/$REG_PROJECT/$IMG_NAME
+  IMG_TAG: $CI_COMMIT_SHORT_SHA
+
+stages:
+  - build
+
+build:
+  image: docker:19.03.1
+  stage: build
+  tags:
+    - build
+  before_script:
+    - docker login -u $DOCKER_EIDAS_REGISTRY_USER -p $DOCKER_EIDAS_REGISTRY_PASSWORD $REG_URL
+  script:
+    - docker build --build-arg GIT_COMMIT=$CI_COMMIT_SHORT_SHA -t $IMG_NAME:$IMG_TAG .
+    - docker tag $IMG_NAME:$IMG_TAG $IMG:$IMG_TAG
+    - docker push $IMG:$IMG_TAG
+    - docker image rm $IMG:$IMG_TAG
+    - docker image rm $IMG_NAME:$IMG_TAG
+  after_script:
+    - docker logout $REG_URL
+  only:
+    - eIDAS

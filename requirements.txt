@@ -1,0 +1,10 @@
+pyop >= 3.0.1
+pysaml2 @ https://api.github.com/repos/nsklikas/pysaml2/tarball/eIDAS
+pycryptodomex
+requests
+PyYAML
+gunicorn
+Werkzeug
+click
+pystache
+cookies-samesite-compat

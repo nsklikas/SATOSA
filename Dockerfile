@@ -1,27 +1,36 @@
-FROM debian:stable-slim
+FROM debian:buster-slim
+
+ARG GIT_COMMIT=none
+LABEL git_commit=$GIT_COMMIT
+ENV OPTION_ROOTDIR /srv
+ENV OPTION_APPDIR ${OPTION_ROOTDIR}/app
+ENV OPTION_DATA_DIR ${OPTION_ROOTDIR}/data
+ENV OPTION_GUNICORN_PORT 8000
+ENV OPTION_GUNICORN_WORKERS 2
 
 RUN apt-get -y update \
     && apt-get -y upgrade \
-    && apt-get -y dist-upgrade \
     && apt-get -y --no-install-recommends install \
         python3 \
         python3-pip \
-        python3-venv \
         xmlsec1 \
+        python3-setuptools \
+        python3-wheel \
     && apt-get -y autoremove \
     && apt-get -y clean
 
-RUN mkdir -p /src/satosa
-COPY . /src/satosa
-COPY docker/setup.sh /setup.sh
-COPY docker/start.sh /start.sh
-RUN chmod +x /setup.sh /start.sh \
-    && sync \
-    && /setup.sh
+WORKDIR ${OPTION_APPDIR}
+
+COPY requirements.txt ${OPTION_APPDIR}
+RUN pip3 install -r requirements.txt
+
+COPY . ${OPTION_APPDIR}/
+RUN pip3 install ${OPTION_APPDIR}
 
 COPY docker/attributemaps /opt/satosa/attributemaps
+COPY  ./docker/start.sh /start.sh
 
-VOLUME /opt/satosa/etc
+VOLUME ${OPTION_DATA_DIR}
+WORKDIR ${OPTION_DATA_DIR}
+EXPOSE ${OPTION_GUNICORN_PORT}
 CMD ["/start.sh"]
-ARG PROXY_PORT=8000
-EXPOSE $PROXY_PORT
