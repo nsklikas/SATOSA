@@ -620,6 +620,44 @@ class SAMLEIDASBackend(SAMLBackend, SAMLEIDASBaseModule):
 
         return util.check_set_dict_defaults(config, spec_eidas_sp)
 
+    def construct_requested_authn_context(self, context, entity_id):
+        mapping = self.config.get('requester_acr_mapping')
+        requester = context.state[STATE_KEY]['requester']
+        if mapping and requester in mapping:
+            acr_entry = mapping[requester]
+            if type(acr_entry) is not dict:
+                acr_entry = {
+                    "class_ref": acr_entry,
+                    "comparison": self.VALUE_ACR_COMPARISON_DEFAULT,
+                }
+
+            authn_context = requested_authn_context(
+                acr_entry['class_ref'], comparison=acr_entry.get(
+                    'comparison', self.VALUE_ACR_COMPARISON_DEFAULT))
+
+            return authn_context
+
+        return super().construct_requested_authn_context(entity_id)
+
+    def get_authn_request_args(
+        self, entity_id, context, requested_attributes=None
+    ):
+        kwargs = {}
+        authn_context = self.construct_requested_authn_context(
+            context, entity_id
+        )
+        if authn_context:
+            kwargs["requested_authn_context"] = authn_context
+        if self.config.get(SAMLBackend.KEY_MIRROR_FORCE_AUTHN):
+            kwargs["force_authn"] = get_force_authn(
+                context, self.config, self.sp.config
+            )
+        if self.requested_attributes:
+            kwargs["requested_attributes"] = self.get_requested_attributes(
+                requested_attributes
+            )
+        return kwargs
+
     def authn_request(self, context, entity_id, requested_attributes=None):
         """
         Do an authorization request on idp with given entity id.
@@ -644,19 +682,9 @@ class SAMLEIDASBackend(SAMLBackend, SAMLEIDASBaseModule):
                     logger.debug(logline, exc_info=False)
                     raise SATOSAAuthenticationError(context.state, "Selected IdP is blacklisted for this backend")
 
-        kwargs = {}
-        authn_context = self.construct_requested_authn_context(entity_id)
-        if authn_context:
-            kwargs["requested_authn_context"] = authn_context
-        if self.config.get(SAMLBackend.KEY_MIRROR_FORCE_AUTHN):
-            kwargs["force_authn"] = get_force_authn(
-                context, self.config, self.sp.config
-            )
-        if self.requested_attributes:
-            kwargs["requested_attributes"] = self.get_requested_attributes(
-                requested_attributes
-            )
-
+        kwargs = self.get_authn_request_args(
+            entity_id, context, requested_attributes=requested_attributes
+        )
         try:
             binding, destination = self.sp.pick_binding(
                 "single_sign_on_service", None, "idpsso", entity_id=entity_id
