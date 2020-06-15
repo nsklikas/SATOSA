@@ -425,6 +425,11 @@ combine_values_by_claim = defaultdict(
         "phone_number_verified": combine_select_first_value,
         "address": combine_select_first_value,
         "updated_at": combine_select_first_value,
+        "person_identifier": combine_select_first_value,
+        "legal_name": combine_select_first_value,
+        "legal_person_identifier": combine_select_first_value,
+        "legal_address": combine_select_first_value,
+        "vat_registration": combine_select_first_value,
     },
 )
 
