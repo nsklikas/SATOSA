@@ -49,6 +49,7 @@ fi
 exec gunicorn satosa.wsgi:app \
     --bind=[::]:"${OPTION_GUNICORN_PORT}" \
     --workers="${OPTION_GUNICORN_WORKERS}" \
+    --chdir="${OPTION_DATA_DIR}"
     --worker-tmp-dir=/dev/shm \
     --log-file=- \
     --access-logfile=-
