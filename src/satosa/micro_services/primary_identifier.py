@@ -251,7 +251,7 @@ class PrimaryIdentifier(satosa.micro_services.base.ResponseMicroService):
             data.attributes = {}
 
         # Set the primary identifier attribute to the value found.
-        data.attributes[primary_identifier] = primary_identifier_val
+        data.attributes[primary_identifier] = [primary_identifier_val]
         msg = "{} Setting attribute {} to value {}".format(
             logprefix, primary_identifier, primary_identifier_val
         )
