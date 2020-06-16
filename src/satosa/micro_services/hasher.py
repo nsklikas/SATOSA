@@ -105,11 +105,12 @@ class Hasher(ResponseMicroService):
 
     def hash_attributes(self, config, internal_data):
         for attribute in config[CONFIG_KEY_ATTRS]:
-            internal_data.attributes[attribute] = [
-                util.hash_data(
-                    config[CONFIG_KEY_SALT],
-                    value,
-                    hash_alg=config[CONFIG_KEY_ALG],
-                )
-                for value in internal_data.attributes.get(attribute, [])
-            ]
+            if attribute in internal_data.attributes:
+                internal_data.attributes[attribute] = [
+                    util.hash_data(
+                        config[CONFIG_KEY_SALT],
+                        value,
+                        hash_alg=config[CONFIG_KEY_ALG],
+                    )
+                    for value in internal_data.attributes.get(attribute, [])
+                ]
