@@ -25,6 +25,11 @@ pipeline {
         stage('Push docker image') {
             when { branch 'eIDAS' }
             steps {
+                dir ("${WORKSPACE}/satosa-oidc-frontend") {
+                    git branch: "master",
+                        credentialsId: 'gitlab-credentials-kevangel',
+                        url: "https://gitlab.grnet.gr/devs/identity/satosa-oidc-frontend.git"
+                }
                 withCredentials(bindings: [usernamePassword(credentialsId: 'eid-proxy-grnet-registry', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     sh '''
                         cd ${WORKSPACE}
