@@ -34,7 +34,7 @@ pipeline {
                     sh '''
                         cd ${WORKSPACE}
                         docker login -u $USERNAME -p $PASSWORD registry.docker.grnet.gr
-                        docker build --build-arg GIT_COMMIT=$GIT_COMMIT_HASH -t satosa:$GIT_COMMIT_HASH .
+                        docker build -f Dockerfile.prod . --build-arg GIT_COMMIT=$GIT_COMMIT_HASH -t satosa:$GIT_COMMIT_HASH
                         docker tag satosa:$GIT_COMMIT_HASH registry.docker.grnet.gr/eid-proxy/satosa:$GIT_COMMIT_HASH
                         docker push registry.docker.grnet.gr/eid-proxy/satosa:$GIT_COMMIT_HASH
                     '''

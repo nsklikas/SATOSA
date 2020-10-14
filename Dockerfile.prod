@@ -21,11 +21,9 @@ RUN apt-get -y update \
 
 WORKDIR ${OPTION_APPDIR}
 
-COPY requirements.txt ${OPTION_APPDIR}
-RUN pip3 install -r requirements.txt
-
 COPY . ${OPTION_APPDIR}/
-RUN pip3 install -e ${OPTION_APPDIR}
+RUN pip3 install -r requirements.txt -r ./satosa-oidc-frontend/requirements.txt
+RUN pip3 install -e ${OPTION_APPDIR} -e ./satosa-oidc-frontend/
 
 COPY docker/attributemaps /opt/satosa/attributemaps
 COPY  ./docker/start.sh /start.sh
