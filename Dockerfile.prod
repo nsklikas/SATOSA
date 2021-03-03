@@ -16,8 +16,15 @@ RUN apt-get -y update \
         xmlsec1 \
         python3-setuptools \
         python3-wheel \
+        build-essential \
+        libssl-dev \
+        libffi-dev \
+        python3-dev \
+        cargo \
+        curl \
     && apt-get -y autoremove \
     && apt-get -y clean
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 WORKDIR ${OPTION_APPDIR}
 
